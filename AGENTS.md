@@ -174,15 +174,15 @@ This demonstrates the full multilingual stack working together.
 
 ## Current Status
 
-- [ ] packages/core/src/types.ts
-- [ ] packages/core/src/config.ts
-- [ ] packages/core/src/detect.ts
-- [ ] packages/core/src/trigger.ts
-- [ ] packages/core/src/translate.ts
-- [ ] packages/core/src/query.ts
-- [ ] packages/core/src/cli.ts
-- [ ] supabase/functions/translate-handler/index.ts
-- [ ] apps/demo (Next.js storefront)
+- [x] packages/core/src/types.ts
+- [x] packages/core/src/config.ts
+- [x] packages/core/src/detect.ts
+- [x] packages/core/src/trigger.ts
+- [x] packages/core/src/translate.ts
+- [x] packages/core/src/query.ts
+- [x] packages/core/src/cli.ts
+- [x] supabase/functions/translate-handler/index.ts
+- [x] apps/demo (Next.js storefront)
 
 ---
 

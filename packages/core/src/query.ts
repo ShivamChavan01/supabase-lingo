@@ -77,16 +77,16 @@ class LingoQueryBuilder {
       const { data: rows, error: rowsError } = await query;
 
       if (rowsError || !rows || rows.length === 0) {
-        return { data: rows, error: rowsError };
+        return { data: rows as unknown as Record<string, unknown>[] | null, error: rowsError };
       }
 
       // 2. If requesting source locale, return as-is
       if (this.targetLocale === 'en') {
-        return { data: rows, error: null };
+        return { data: rows as unknown as Record<string, unknown>[], error: null };
       }
 
       // 3. Fetch translations for these rows
-      const rowIds = rows.map((r: Record<string, unknown>) => String(r.id));
+      const rowIds = rows.map((r) => String((r as unknown as Record<string, unknown>).id));
 
       const { data: translations } = await this.supabase
         .from(TRANSLATIONS_TABLE)
@@ -96,7 +96,7 @@ class LingoQueryBuilder {
         .in('row_id', rowIds);
 
       if (!translations || translations.length === 0) {
-        return { data: rows, error: null };
+        return { data: rows as unknown as Record<string, unknown>[], error: null };
       }
 
       // 4. Build translation lookup map
@@ -110,10 +110,11 @@ class LingoQueryBuilder {
       }
 
       // 5. Merge translations into rows
-      const mergedRows = rows.map((row: Record<string, unknown>) => {
-        const rowTranslations = translationMap.get(String(row.id));
-        if (!rowTranslations) return row;
-        return { ...row, ...rowTranslations };
+      const mergedRows = rows.map((row) => {
+        const rowObj = row as unknown as Record<string, unknown>;
+        const rowTranslations = translationMap.get(String(rowObj.id));
+        if (!rowTranslations) return rowObj;
+        return { ...rowObj, ...rowTranslations };
       });
 
       return { data: mergedRows, error: null };
@@ -145,18 +146,19 @@ export async function getTranslationCoverage(
     .from(table)
     .select('*', { count: 'exact', head: true });
 
-  if (!totalRows) return {};
+  if (!totalRows || totalRows === 0) return {};
 
   const coverage: { [locale: string]: number } = {};
 
   for (const locale of targetLocales) {
     const { count: translatedRows } = await supabase
-      .from(TRANSLATIONS_TABLE)
+      .from('_lingo_translations')
       .select('*', { count: 'exact', head: true })
       .eq('table_name', table)
       .eq('locale', locale);
 
-    coverage[locale] = Math.round(((translatedRows || 0) / totalRows) * 100);
+    const pct = Math.round(((translatedRows ?? 0) / totalRows) * 100);
+    coverage[locale] = Math.min(100, Math.max(0, pct));
   }
 
   return coverage;

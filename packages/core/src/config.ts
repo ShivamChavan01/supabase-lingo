@@ -4,16 +4,16 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
 import { LingoConfig, DEFAULT_LOCALES } from './types';
-
-dotenv.config();
 
 export function defineConfig(config: LingoConfig): LingoConfig {
   return config;
 }
 
 export function loadConfig(cwd: string = process.cwd()): LingoConfig {
+  try {
+    require('dotenv').config({ path: path.resolve(cwd, '.env') });
+  } catch {}
   // Try loading supabase-lingo.config.ts or .js
   const configPaths = [
     path.join(cwd, 'supabase-lingo.config.ts'),

@@ -208,9 +208,10 @@ program
         let translated = 0;
 
         for (const row of rows) {
+          const rowData = row as unknown as Record<string, unknown>;
           const items = cols
-            .filter(col => row[col])
-            .map(col => ({ key: `${col}_${row.id}`, value: String(row[col]) }));
+            .filter(col => rowData[col])
+            .map(col => ({ key: `${col}_${rowData.id}`, value: String(rowData[col]) }));
 
           if (items.length === 0) continue;
 
@@ -228,7 +229,7 @@ program
             for (const locale of config.locales) {
               upsertData.push({
                 table_name: table,
-                row_id: String(row.id),
+                row_id: String(rowData.id),
                 column_name: col,
                 locale,
                 value: results[item.key]?.[locale] || item.value,

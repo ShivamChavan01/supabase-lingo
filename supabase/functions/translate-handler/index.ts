@@ -1,86 +1,95 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const TRANSLATIONS_TABLE = '_lingo_translations'
 
-const corsHeaders = {
+const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: CORS })
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: CORS })
   }
 
   try {
-    const { table, row_id, column, value, source_locale, target_locales } = await req.json();
+    const { table, row_id, column, value, source_locale, target_locales } = await req.json()
 
-    if (!table || !row_id || !column || !value) {
-      throw new Error('Missing required fields: table, row_id, column, value');
+    if (!value?.trim()) {
+      return new Response(JSON.stringify({ skipped: true }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' }
+      })
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lingoApiKey = Deno.env.get('LINGO_API_KEY')!;
+    const lingoApiKey = Deno.env.get('LINGO_API_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    if (!supabaseUrl || !supabaseKey || !lingoApiKey) {
-      throw new Error('Missing environment variables');
-    }
+    if (!lingoApiKey) throw new Error('LINGO_API_KEY not set')
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const translations: Record<string, string> = {}
 
-    const translations: Record<string, string> = {};
-
+    // Translate to each locale sequentially to avoid timeout
     for (const locale of target_locales) {
-      const cmd = new Deno.Command('npx', {
-        args: [
-          'lingo.dev@latest',
-          'i18n',
-          'translate',
-          '--source', source_locale,
-          '--target', locale,
-          '--text', value,
-        ],
-        env: { LINGO_API_KEY: lingoApiKey },
-      });
+      try {
+        const res = await fetch(`https://api.lingo.dev/v1/translate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${lingoApiKey}`,
+          },
+          body: JSON.stringify({
+            source_locale,
+            target_locale: locale,
+            text: value,
+          }),
+        })
 
-      const { code, stdout, stderr } = await cmd.output();
-
-      if (code === 0) {
-        const result = new TextDecoder().decode(stdout).trim();
-        translations[locale] = result;
-      } else {
-        console.error('Lingo translation error:', new TextDecoder().decode(stderr));
-        translations[locale] = value;
+        if (res.ok) {
+          const data = await res.json()
+          translations[locale] = data?.translation || data?.text || value
+        } else {
+          translations[locale] = value
+        }
+      } catch {
+        translations[locale] = value
       }
     }
 
+    // Save to Supabase
     const upsertData = Object.entries(translations).map(([locale, translatedValue]) => ({
       table_name: table,
-      row_id: String(row_id),
+      row_id,
       column_name: column,
       locale,
       value: translatedValue,
       updated_at: new Date().toISOString(),
-    }));
+    }))
 
-    const { error: upsertError } = await supabase
-      .from('_lingo_translations')
-      .upsert(upsertData, {
-        onConflict: 'table_name,row_id,column_name,locale',
-      });
-
-    if (upsertError) {
-      throw new Error(`Failed to save translations: ${upsertError.message}`);
-    }
+    await fetch(`${supabaseUrl}/rest/v1/${TRANSLATIONS_TABLE}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+        'apikey': supabaseKey,
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify(upsertData),
+    })
 
     return new Response(
-      JSON.stringify({ success: true, translations }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify({ success: true, locales: Object.keys(translations) }),
+      { headers: { ...CORS, 'Content-Type': 'application/json' } }
+    )
 
-  } catch (error) {
+  } catch (err) {
+    console.error('Error:', err.message)
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify({ error: err.message }),
+      { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } }
+    )
   }
-});
+})

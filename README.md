@@ -266,6 +266,8 @@ Unlike Google Translate or DeepL, **Lingo.dev understands context**. It knows th
 
 ---
 
+🌍 Live Demo: https://supabase-lingo-demo.vercel.app
+
 ## Built With
 
 - [Lingo.dev CLI](https://lingo.dev) — AI translation engine
@@ -274,6 +276,7 @@ Unlike Google Translate or DeepL, **Lingo.dev understands context**. It knows th
 - [TypeScript](https://www.typescriptlang.org/) — Type-safe SDK
 
 ---
+
 
 ## Contributing
 

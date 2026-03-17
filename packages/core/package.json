@@ -1,6 +1,6 @@
 {
   "name": "supabase-lingo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Auto-translate your Supabase database content in real-time using Lingo.dev",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,6 +20,11 @@
     "translation",
     "multilingual",
     "database"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "AGENTS.md"
   ],
   "author": "Shivam Chavan",
   "license": "MIT",
